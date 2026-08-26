@@ -1,0 +1,13 @@
+{
+  "name": "digitalocean-ai-pr-reviewer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "review": "node --experimental-strip-types src/review.ts"
+  },
+  "engines": {
+    "node": ">=22.6"
+  }
+}
