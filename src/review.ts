@@ -77,6 +77,10 @@ export function renderComment(result: ReviewResult, skippedFiles: string[]) {
   return `${header}${body}${skipped}\n\n_The reviewer analyzed a redacted, capped diff. It did not execute pull-request code or make a merge decision._`;
 }
 
+export function findStickyComment(comments: Array<{ id: number; body?: string }>) {
+  return comments.find((comment) => comment.body?.includes(COMMENT_MARKER));
+}
+
 function required(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required.`);
@@ -94,7 +98,7 @@ async function github(path: string, init: RequestInit = {}) {
 
 async function updateStickyComment(repository: string, pullNumber: number, body: string) {
   const comments = await (await github(`/repos/${repository}/issues/${pullNumber}/comments?per_page=100`)).json() as Array<{ id: number; body?: string }>;
-  const existing = comments.find((comment) => comment.body?.includes(COMMENT_MARKER));
+  const existing = findStickyComment(comments);
   if (existing) {
     await github(`/repos/${repository}/issues/comments/${existing.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body }) });
     return;

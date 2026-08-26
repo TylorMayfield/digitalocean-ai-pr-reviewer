@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildReviewPacket, parseReviewResult, redactSecrets, renderComment } from '../src/review.ts';
+import { buildReviewPacket, findStickyComment, parseReviewResult, redactSecrets, renderComment } from '../src/review.ts';
 
 const FIXTURE_DIFF = `diff --git a/src/handler.ts b/src/handler.ts
 index 123..456 100644
@@ -36,8 +36,17 @@ test('returns only valid structured findings', () => {
   assert.equal(result.findings[0].severity, 'high');
 });
 
+test('treats malformed model output as no findings', () => {
+  assert.deepEqual(parseReviewResult('I found a critical issue.'), { findings: [] });
+});
+
 test('uses a clear no-findings comment', () => {
   const comment = renderComment({ findings: [] }, []);
   assert.match(comment, /No actionable/);
   assert.match(comment, /non-blocking/);
+});
+
+test('finds the existing marked comment so it can be replaced', () => {
+  const existing = findStickyComment([{ id: 1, body: 'A different comment' }, { id: 2, body: '<!-- do-ai-pr-review -->\nOld review' }]);
+  assert.equal(existing?.id, 2);
 });

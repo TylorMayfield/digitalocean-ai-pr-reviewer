@@ -4,10 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-strip-types --test test/*.test.ts",
-    "review": "node --experimental-strip-types src/review.ts"
+    "test": "tsx --test test/review.test.ts test/workflow.test.ts",
+    "review": "tsx src/review.ts",
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=22.6"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "tsx": "4.19.2",
+    "typescript": "5.8.3"
   }
 }

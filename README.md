@@ -1,53 +1,55 @@
 # Advisory AI pull request reviewer
 
-The public companion repository is [TylorMayfield/digitalocean-ai-pr-reviewer](https://github.com/TylorMayfield/digitalocean-ai-pr-reviewer).
+An intentionally small, template-ready GitHub Actions reviewer. It sends a redacted, capped pull request diff to [DigitalOcean Serverless Inference](https://docs.digitalocean.com/products/inference/reference/api/serverless-inference/) and posts or updates one advisory pull request comment.
 
-An intentionally small GitHub Actions reviewer that sends a redacted, capped pull request diff to [DigitalOcean Serverless Inference](https://docs.digitalocean.com/products/inference/reference/api/serverless-inference/) and updates one advisory PR comment.
-
-It is not a merge gate, does not approve or reject pull requests, and never checks out or executes pull-request code.
+It does not approve, request changes, merge code, or execute pull-request code.
 
 ## Tutorial
 
-Read the complete setup, testing, and security guidance: [Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean](https://www.tylor.nz/content/build-ai-pull-request-reviewer).
+For a beginner-friendly first run, including setup paths, troubleshooting, and the security model, read [Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean](https://www.tylor.nz/content/build-ai-pull-request-reviewer).
 
 ## Disclosure
 
 This repository accompanies the tutorial **“Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean.”** We earn commissions when you shop through the DigitalOcean links in that article, at no additional cost to you. The documentation links in this repository are provided for setup and reference; they are not required to use the starter.
 
-## What it does
+## Before you start
 
-- Runs on `pull_request`, never `pull_request_target`.
-- Runs only for same-repository pull requests; forks are skipped before a secret can be used.
-- Uses least-privilege `contents: read` and `pull-requests: write` permissions.
-- Fetches the diff through GitHub's API; no `checkout` step is present.
-- Skips lock, generated, dependency, source-map, and common binary files.
-- Caps the review at 20 files and 45,000 characters, then redacts common token and private-key patterns.
-- Requires structured JSON, limits output to three findings, and updates a marked sticky comment.
+You need a GitHub repository where you can create a branch and pull request, a DigitalOcean account with Serverless Inference access, and Node.js 22.6 or newer for the local checks. The workflow needs one GitHub repository secret named `DIGITALOCEAN_TOKEN`. `DIGITALOCEAN_MODEL` is optional; the default model is `openai-gpt-oss-20b`.
 
-## Setup
+## First run
 
-1. Copy `.github/workflows/ai-pr-review.yml`, `src/review.ts`, and `package.json` into the repository you want to review.
-2. In **Settings → Secrets and variables → Actions**, add a `DIGITALOCEAN_TOKEN` repository secret. Use a model access key with access only to the Serverless Inference model you intend to use.
-3. Optionally add a `DIGITALOCEAN_MODEL` repository variable. The default is `openai-gpt-oss-20b`; select a current model ID from the DigitalOcean Model Catalog.
-4. Open a non-draft pull request from a branch in the same repository. The job posts or updates one advisory comment.
+1. On GitHub, select **Use this template** to create a new repository, or fork this repository for a personal test.
+2. Create a narrowly scoped DigitalOcean model access key: **INFERENCE → Manage → Create model access key**. Choose only the model you intend to use, then copy the one-time secret.
+3. In your new GitHub repository, open **Settings → Secrets and variables → Actions → New repository secret**. Name it `DIGITALOCEAN_TOKEN`, paste the key, and save it. Optionally create a repository variable named `DIGITALOCEAN_MODEL` with a model ID from the Model Catalog.
+4. From the repository’s default branch, create a branch such as `test-ai-review`. Edit a small non-lockfile source or documentation file, commit, push, and open a **non-draft** pull request back to that same repository.
+5. Open the pull request’s **Actions** tab. A successful run posts one comment titled “Advisory AI pull request review.” Pushing another commit updates that same comment instead of adding another one.
 
-The workflow is deliberately non-blocking (`continue-on-error: true`). Keep branch protection, tests, static analysis, and human review as separate controls.
-
-## Test it before enabling it
-
-Requires Node.js 22.6 or newer.
+Run the included checks before enabling the workflow in a repository with real work:
 
 ```sh
+npm ci
 npm test
+npm run review
 ```
 
-The fixture verifies token redaction, skipped lock files, structured-result validation, and the no-findings comment. Before using a real repository, open a disposable same-repository pull request and verify that one comment is updated on each push.
+`npm run review` is the workflow entry point. It requires GitHub Actions environment variables and a real `DIGITALOCEAN_TOKEN`, so run it locally only when you deliberately provide a disposable test environment.
 
-## Security boundary
+## What the workflow does
 
-Diffs can contain malicious instructions in comments, documentation, or strings. The prompt labels the complete diff as untrusted data and never follows instructions contained in it. Size limits, file exclusions, and token-pattern redaction reduce exposure, but they cannot make committed secrets safe. Do not use this starter for production credentials, regulated data, or a workflow that requires a deterministic security control.
+- Runs on `pull_request`, never `pull_request_target`.
+- Skips draft pull requests and pull requests from forks before secrets can be used.
+- Checks out only `github.event.pull_request.base.sha`: the trusted reviewer from the base branch, not pull-request code.
+- Pins `actions/checkout` and `actions/setup-node` to reviewed commit SHAs.
+- Uses least-privilege `contents: read` and `pull-requests: write` permissions.
+- Skips lock, generated, dependency, source-map, and common binary files.
+- Caps the request at 20 files and 45,000 characters, redacts common token/private-key patterns, and requires structured JSON with at most three findings.
+- Updates a marker-based sticky comment and remains non-blocking even when inference fails.
 
-Forked pull requests are skipped. GitHub withholds normal repository secrets from fork-triggered workflows and provides a read-only token. Do not replace `pull_request` with `pull_request_target` to bypass this restriction.
+## Safety boundary
+
+Diffs can contain malicious instructions in comments, documentation, or strings. The prompt treats the complete diff as untrusted data and never follows instructions inside it. File exclusions, size limits, response validation, and redaction reduce exposure, but cannot make committed secrets safe. Keep human review, branch protection, tests, and static analysis as independent controls.
+
+Forked pull requests are intentionally skipped because GitHub does not provide normal repository secrets to workflows triggered by forks. Do not replace `pull_request` with `pull_request_target` to bypass that restriction. Do not use this starter for production credentials, regulated data, or a deterministic security control.
 
 ## License
 
