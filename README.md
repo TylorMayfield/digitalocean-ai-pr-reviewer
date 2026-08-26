@@ -1,6 +1,6 @@
 # Advisory AI pull request reviewer
 
-This starter is published with the site source at `examples/digitalocean-ai-pr-reviewer`.
+The public companion repository is [TylorMayfield/digitalocean-ai-pr-reviewer](https://github.com/TylorMayfield/digitalocean-ai-pr-reviewer).
 
 An intentionally small GitHub Actions reviewer that sends a redacted, capped pull request diff to [DigitalOcean Serverless Inference](https://docs.digitalocean.com/products/inference/reference/api/serverless-inference/) and updates one advisory PR comment.
 
