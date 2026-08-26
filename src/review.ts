@@ -124,8 +124,9 @@ async function reviewWithDigitalOcean(packet: string) {
 async function main() {
   const event = JSON.parse(await (await import('node:fs/promises')).readFile(required('GITHUB_EVENT_PATH'), 'utf8')) as { pull_request?: { number?: number; draft?: boolean; head?: { repo?: { full_name?: string } } } };
   const repository = required('GITHUB_REPOSITORY');
-  const pullNumber = event.pull_request?.number;
-  if (!pullNumber || event.pull_request?.draft || event.pull_request.head?.repo?.full_name !== repository) return;
+  const pullRequest = event.pull_request;
+  const pullNumber = pullRequest?.number;
+  if (!pullRequest || !pullNumber || pullRequest.draft || pullRequest.head?.repo?.full_name !== repository) return;
 
   const diff = await (await github(`/repos/${repository}/pulls/${pullNumber}`, { headers: { Accept: 'application/vnd.github.v3.diff' } })).text();
   const { packet, skippedFiles } = buildReviewPacket(diff);

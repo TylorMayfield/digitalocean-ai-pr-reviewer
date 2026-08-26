@@ -6,6 +6,10 @@ An intentionally small GitHub Actions reviewer that sends a redacted, capped pul
 
 It is not a merge gate, does not approve or reject pull requests, and never checks out or executes pull-request code.
 
+## Disclosure
+
+This repository accompanies the tutorial **“Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean.”** We earn commissions when you shop through the DigitalOcean links in that article, at no additional cost to you. The documentation links in this repository are provided for setup and reference; they are not required to use the starter.
+
 ## What it does
 
 - Runs on `pull_request`, never `pull_request_target`.
