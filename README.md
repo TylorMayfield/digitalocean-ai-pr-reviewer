@@ -4,13 +4,15 @@ An intentionally small, template-ready GitHub Actions reviewer. It sends a redac
 
 It does not approve, request changes, merge code, or execute pull-request code.
 
-## Tutorial
+## Read the guide
 
-For a beginner-friendly first run, including setup paths, troubleshooting, and the security model, read [Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean](https://www.tylor.nz/content/build-ai-pull-request-reviewer).
+[Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean](https://www.tylor.nz/content/build-ai-pull-request-reviewer)
 
 ## Disclosure
 
-This repository accompanies the tutorial **“Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean.”** We earn commissions when you shop through the DigitalOcean links in that article, at no additional cost to you. The documentation links in this repository are provided for setup and reference; they are not required to use the starter.
+This README includes a DigitalOcean affiliate link. If you use it, I may earn a commission at no additional cost to you.
+
+[Explore DigitalOcean Serverless Inference](https://www.awin1.com/cread.php?s=4757508&v=123996&q=601070&r=3054551)
 
 ## Before you start
 
