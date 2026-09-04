@@ -6,13 +6,13 @@ It does not approve, request changes, merge code, or execute pull-request code.
 
 ## Read the guide
 
-[Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean](https://www.tylor.nz/content/build-ai-pull-request-reviewer)
+[Build an AI Pull Request Reviewer with GitHub Actions and DigitalOcean](https://www.tylor.nz/content/build-ai-pull-request-reviewer?utm_source=github&utm_medium=referral&utm_campaign=digitalocean-guides&utm_content=companion-readme)
 
 ## Disclosure
 
 This README includes a DigitalOcean affiliate link. If you use it, I may earn a commission at no additional cost to you.
 
-[Explore DigitalOcean Serverless Inference](https://www.awin1.com/cread.php?s=4757508&v=123996&q=601070&r=3054551)
+[Explore DigitalOcean Serverless Inference](https://www.tylor.nz/go/digitalocean?utm_source=github&utm_medium=affiliate&utm_campaign=digitalocean-guides&utm_content=build-ai-pull-request-reviewer&product=serverless-inference&placement=companion-readme&variant=readme-primary&locale=en)
 
 ## Before you start
 
