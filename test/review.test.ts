@@ -31,19 +31,43 @@ test('filters lock files and redacts the review packet', () => {
 });
 
 test('returns only valid structured findings', () => {
-  const result = parseReviewResult('{"findings":[{"severity":"high","file":"src/handler.ts","startLine":3,"endLine":3,"evidence":"eval(input)","explanation":"Untrusted input can execute code."},{"severity":"critical"}]}');
+  const result = parseReviewResult('{"findings":[{"severity":"high","file":"src/handler.ts","startLine":3,"endLine":3,"evidence":"eval(input)","explanation":"Untrusted input can execute code."}]}');
   assert.equal(result.findings.length, 1);
   assert.equal(result.findings[0].severity, 'high');
 });
 
-test('treats malformed model output as no findings', () => {
-  assert.deepEqual(parseReviewResult('I found a critical issue.'), { findings: [] });
+test('distinguishes malformed and partially invalid responses from a clean review', () => {
+  for (const content of ['I found a critical issue.', '{}', '{"findings":[{"severity":"critical"}]}']) {
+    const result = parseReviewResult(content);
+    assert.equal(result.status, 'invalid-response');
+    assert.doesNotMatch(renderComment(result, []), /No actionable/);
+    assert.match(renderComment(result, []), /Review incomplete/);
+  }
 });
 
 test('uses a clear no-findings comment', () => {
-  const comment = renderComment({ findings: [] }, []);
+  const comment = renderComment(parseReviewResult('{"findings":[]}'), []);
   assert.match(comment, /No actionable/);
   assert.match(comment, /non-blocking/);
+});
+
+test('reports request failure and filtering without a clean-review message', () => {
+  for (const status of ['request-failed', 'no-included-changes'] as const) {
+    const comment = renderComment({ status, findings: [] }, []);
+    assert.doesNotMatch(comment, /No actionable/);
+    assert.match(comment, new RegExp(status));
+  }
+});
+
+test('redacts generic, RSA, OpenSSH and encrypted key blocks in added/deleted diff lines', () => {
+  for (const type of ['PRIVATE KEY', 'RSA PRIVATE KEY', 'OPENSSH PRIVATE KEY', 'ENCRYPTED PRIVATE KEY']) {
+    for (const prefix of ['+', '-', ' ']) {
+      const input = `${prefix}-----BEGIN ${type}-----\n${prefix}FAKE-KEY-CONTENT\n${prefix}-----END ${type}-----`;
+      const result = redactSecrets(input);
+      assert.doesNotMatch(result, /FAKE-KEY-CONTENT/);
+      assert.match(result, /\[REDACTED\]/);
+    }
+  }
 });
 
 test('finds the existing marked comment so it can be replaced', () => {

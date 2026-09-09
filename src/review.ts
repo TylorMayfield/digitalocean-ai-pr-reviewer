@@ -7,7 +7,10 @@ export type Finding = {
   explanation: string;
 };
 
-export type ReviewResult = { findings: Finding[] };
+export type ReviewResult = {
+  status: 'completed' | 'invalid-response' | 'request-failed' | 'no-included-changes';
+  findings: Finding[];
+};
 
 const COMMENT_MARKER = '<!-- do-ai-pr-review -->';
 const MAX_FILES = 20;
@@ -15,7 +18,7 @@ const MAX_DIFF_CHARACTERS = 45_000;
 const SKIPPED_FILE_PATTERN = /(^|\/)(node_modules|dist|build|coverage)\/|(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$|\.min\.(js|css)$|\.(png|jpe?g|gif|webp|pdf|zip|map)$/i;
 const SECRET_PATTERNS = [
   /(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|dop_v1_[A-Za-z0-9_-]{20,}|doo_v1_[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9_-]{20,})/g,
-  /-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----/g,
+  /-----BEGIN ((?:[A-Z]+ )*PRIVATE KEY)-----[\s\S]*?-----END \1-----/g,
 ];
 
 export function redactSecrets(value: string) {
@@ -51,9 +54,9 @@ export function parseReviewResult(content: string): ReviewResult {
   try {
     parsed = JSON.parse(candidate);
   } catch {
-    return { findings: [] };
+    return { status: 'invalid-response', findings: [] };
   }
-  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { findings?: unknown }).findings)) return { findings: [] };
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { findings?: unknown }).findings)) return { status: 'invalid-response', findings: [] };
 
   const findings = (parsed as { findings: unknown[] }).findings.flatMap((finding) => {
     if (!finding || typeof finding !== 'object') return [];
@@ -65,16 +68,27 @@ export function parseReviewResult(content: string): ReviewResult {
     if (!Number.isInteger(startLine) || !Number.isInteger(endLine) || startLine < 1 || endLine < startLine) return [];
     return [{ severity: value.severity as Finding['severity'], file: value.file, startLine, endLine, evidence: redactSecrets(value.evidence).slice(0, 300), explanation: redactSecrets(value.explanation).slice(0, 500) }];
   });
-  return { findings: findings.slice(0, 3) };
+  // A partially invalid response is not evidence of a completed review.
+  if (findings.length !== (parsed as { findings: unknown[] }).findings.length) {
+    return { status: 'invalid-response', findings: [] };
+  }
+  return { status: 'completed', findings: findings.slice(0, 3) };
 }
 
 export function renderComment(result: ReviewResult, skippedFiles: string[]) {
   const header = `${COMMENT_MARKER}\n## Advisory AI pull request review\n\nThis is a non-blocking second opinion. A human must verify every finding against the diff before changing or merging code.`;
-  const body = result.findings.length === 0
+  const notices: Record<Exclude<ReviewResult['status'], 'completed'>, string> = {
+    'invalid-response': 'Review incomplete: the model response did not match the required format. Rerun the job or review the diff manually.',
+    'request-failed': 'Review unavailable: the model request failed. Check the job configuration and rerun. No clean-review conclusion was reached.',
+    'no-included-changes': 'Review skipped: no changes remained after filtering. No model review was performed.',
+  };
+  const body = result.status !== 'completed'
+    ? `\n\n${notices[result.status]}`
+    : result.findings.length === 0
     ? '\n\nNo actionable, evidence-backed findings were returned for the reviewed diff.'
     : `\n\n${result.findings.map((finding) => `### ${finding.severity.toUpperCase()} — \`${finding.file}:${finding.startLine}-${finding.endLine}\`\n${finding.explanation}\n\nEvidence: \`${finding.evidence.replace(/`/g, "'")}\``).join('\n\n')}`;
   const skipped = skippedFiles.length > 0 ? `\n\nSkipped: ${skippedFiles.slice(0, 8).map((file) => `\`${file}\``).join(', ')}${skippedFiles.length > 8 ? ', and more' : ''}.` : '';
-  return `${header}${body}${skipped}\n\n_The reviewer analyzed a redacted, capped diff. It did not execute pull-request code or make a merge decision._`;
+  return `${header}${body}${skipped}\n\n_Status: ${result.status}. Input is filtered and capped; pattern redaction is not a guarantee that secrets are absent. The reviewer did not execute pull-request code or make a merge decision._`;
 }
 
 export function findStickyComment(comments: Array<{ id: number; body?: string }>) {
@@ -134,7 +148,16 @@ async function main() {
 
   const diff = await (await github(`/repos/${repository}/pulls/${pullNumber}`, { headers: { Accept: 'application/vnd.github.v3.diff' } })).text();
   const { packet, skippedFiles } = buildReviewPacket(diff);
-  const result = packet ? await reviewWithDigitalOcean(packet) : { findings: [] };
+  let result: ReviewResult = { status: 'no-included-changes', findings: [] };
+  if (packet) {
+    try {
+      result = await reviewWithDigitalOcean(packet);
+    } catch {
+      // Do not copy a provider response, credential, or submitted diff into logs.
+      console.error('Model request failed; posting an unavailable review status.');
+      result = { status: 'request-failed', findings: [] };
+    }
+  }
   await updateStickyComment(repository, pullNumber, renderComment(result, skippedFiles));
 }
 
